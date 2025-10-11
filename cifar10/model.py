@@ -22,14 +22,7 @@ class DepthwiseSeparableConv(nn.Module):
 
 
 class CIFAR10Net(nn.Module):
-    """
-    CIFAR-10 CNN with architecture C1C2C3C40
-    - Uses Dilated Convolutions instead of MaxPooling
-    - Uses Depthwise Separable Convolution
-    - Total RF > 44
-    - Params < 200k
-    - Optimized for Apple Silicon MPS
-    """
+    
     def __init__(self, num_classes=10):
         super(CIFAR10Net, self).__init__()
         
@@ -115,12 +108,7 @@ class CIFAR10Net(nn.Module):
 
 
 def get_model_summary(model, input_size=(3, 32, 32), device='cpu'):
-    """
-    Get model summary with parameter count and layer details
     
-    Note: torchsummary doesn't support MPS, so we always run on CPU
-    and then move the model back to the original device.
-    """
     from torchsummary import summary
     
     # Store original device

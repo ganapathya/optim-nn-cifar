@@ -1,173 +1,101 @@
-# CIFAR-10 CNN - Apple Silicon Optimized
+# Neural Network Training Projects
 
-A highly efficient Convolutional Neural Network for CIFAR-10 classification, optimized for Apple Silicon GPUs (MPS). This implementation achieves **88.59% accuracy** (exceeding the 85% target) with only **183,802 parameters** (<200k) using modern CNN techniques.
+This repository contains implementations for training deep learning models on CIFAR datasets with optimized architectures and training strategies.
 
-## 🎯 Project Results
+## 📁 Project Structure
 
-| Objective                | Target                   | Achieved                        | Status           |
-| ------------------------ | ------------------------ | ------------------------------- | ---------------- |
-| Architecture             | C1C2C3C40                | C1C2C3C40                       | ✅               |
-| No MaxPooling            | Use dilated convolutions | Dilated convolutions used       | ✅               |
-| Receptive Field          | > 44                     | 47                              | ✅               |
-| Depthwise Separable Conv | Required                 | Implemented in C2               | ✅               |
-| Dilated Convolution      | Required                 | Implemented in C3 & transitions | ✅               |
-| Global Average Pooling   | Required                 | Implemented                     | ✅               |
-| Albumentations           | 3 transforms             | All 3 implemented               | ✅               |
-| **Target Accuracy**      | **85%**                  | **88.59%**                      | ✅ **Exceeded!** |
-| Parameters               | < 200k                   | 183,802                         | ✅               |
-| Apple Silicon MPS        | Optimized                | Fully optimized                 | ✅               |
-| **Training Time**        | ~15-20 min               | **13.88 min**                   | ✅ **Faster!**   |
+```
+optim-nn-sifar/
+├── cifar10/              # CIFAR-10 custom CNN (88.59% accuracy)
+│   ├── model.py          # Custom efficient CNN architecture
+│   ├── train.py          # Training pipeline
+│   ├── utils.py          # Data loaders with augmentations
+│   └── test_setup.py     # Setup verification
+│
+├── cifar100/             # CIFAR-100 ResNet-18 (Target: 73%+)
+│   ├── model.py          # ResNet-18 adapted for CIFAR-100
+│   ├── train.py          # Training with cosine annealing
+│   ├── utils.py          # Data loaders and augmentations
+│   ├── inference.py      # Model inference utilities
+│   ├── config.py         # Training configuration
+│   └── README.md         # Detailed documentation
+│
+├── gradio_app/           # Huggingface Spaces deployment
+│   ├── app.py            # Gradio interface for CIFAR-100
+│   ├── requirements.txt  # Deployment dependencies
+│   └── README.md         # App documentation
+│
+├── data/                 # Datasets (auto-downloaded)
+├── logs/                 # Training logs and checkpoints
+│   ├── cifar100/         # CIFAR-100 training logs
+│   └── ...
+│
+├── requirements.txt      # Main project dependencies
+└── README.md            # This file
+```
+
+## 🎯 Projects
+
+### 1. CIFAR-10 Custom CNN ✅ Completed
+
+A highly efficient CNN achieving **88.59% accuracy** with only **183,802 parameters** (<200k).
+
+**Key Features:**
+
+- Custom C1C2C3C40 architecture
+- Depthwise separable convolutions
+- Dilated convolutions (no MaxPooling)
+- Global Average Pooling
+- Receptive field: 47
+- Training time: ~14 minutes on Apple Silicon
+
+**Status:** ✅ Completed and exceeds 85% target
+
+📖 **See:** `cifar10/` folder for implementation
 
 ---
 
-## 📊 Model Architecture
+### 2. CIFAR-100 ResNet-18 🔄 Ready for Training
 
-### Network Structure: C1C2C3C40
+ResNet-18 model trained from scratch on CIFAR-100, targeting **73%+ top-1 accuracy**.
 
-The network follows a C1C2C3C40 architecture with the following characteristics:
+**Architecture:**
 
-```
-Input (3x32x32)
-    ↓
-┌─────────────────────────────────────────┐
-│ C1 Block                                │
-│ - Conv 3→20 (3x3, pad=1)        RF: 3  │
-│ - Conv 20→28 (3x3, pad=1)       RF: 5  │
-└─────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────┐
-│ Transition 1 (Dilated Conv)             │
-│ - Conv 28→28 (3x3, s=2, d=1)    RF: 7  │
-│   Output: 16x16                         │
-└─────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────┐
-│ C2 Block (Depthwise Separable)          │
-│ - DepthwiseSeparable 28→40      RF: 11 │
-│ - Conv 40→48 (3x3, pad=1)       RF: 15 │
-└─────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────┐
-│ Transition 2 (Dilated Conv)             │
-│ - Conv 48→48 (3x3, s=2, d=2)    RF: 23 │
-│   Output: 8x8                           │
-└─────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────┐
-│ C3 Block (Dilated Convolution)          │
-│ - Conv 48→56 (3x3, d=2)         RF: 31 │
-│ - Conv 56→64 (3x3, pad=1)       RF: 35 │
-└─────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────┐
-│ C40 Block                               │
-│ - Conv 64→72 (3x3, pad=1)       RF: 39 │
-│ - Conv 72→56 (1x1)              RF: 39 │
-│ - Conv 56→56 (3x3, s=2)         RF: 47 │
-│   Output: 4x4                           │
-└─────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────┐
-│ Global Average Pooling (GAP)            │
-│   Output: 1x1                           │
-└─────────────────────────────────────────┘
-    ↓
-┌─────────────────────────────────────────┐
-│ Fully Connected Layer                   │
-│ - FC 56→10                              │
-└─────────────────────────────────────────┘
-    ↓
-Output (10 classes)
-```
+- ResNet-18 adapted for 32×32 images
+- ~11 million parameters
+- Modified first conv (3×3 instead of 7×7)
+- No initial maxpool
 
-### Key Features
+**Training Strategy:**
 
-1. **Depthwise Separable Convolution** (C2 Block)
+- 100 epochs with cosine annealing
+- SGD with momentum (0.9) and weight decay (5e-4)
+- Label smoothing (0.1)
+- Strong augmentations: RandomCrop, HFlip, Cutout
+- Warmup for first 5 epochs
 
-   - Reduces parameters while maintaining performance
-   - Separates spatial and channel-wise operations
+**Expected Training Time:** ~2-3 hours on Apple Silicon
 
-2. **Dilated Convolution** (C3 Block & Transitions)
-
-   - Increases receptive field without increasing parameters
-   - Replaces MaxPooling for downsampling
-   - Dilation rates: 1, 2
-
-3. **Global Average Pooling (GAP)**
-
-   - Reduces overfitting compared to FC layers
-   - Minimizes parameters in final layers
-
-4. **Final Receptive Field: 47** (> 44 requirement ✓)
-
-### Parameter Count
-
-```
-Total Parameters: 183,802 (< 200k ✓)
-Trainable Parameters: 183,802
-```
+📖 **See:** `cifar100/README.md` for detailed guide
 
 ---
 
-## 🔄 Data Augmentation (Albumentations)
+### 3. Huggingface Gradio App 🌐
 
-All three required augmentations are implemented in `utils.py`:
+Interactive web application for CIFAR-100 image classification, ready for deployment on Huggingface Spaces.
 
-### 1. Horizontal Flip
+**Features:**
 
-```python
-A.HorizontalFlip(p=0.5)
-```
+- Upload image for classification
+- Top-5 predictions with confidence scores
+- Clean, modern UI with Gradio
+- Model information and documentation
 
-- Randomly flips images horizontally
-- Probability: 50%
-
-### 2. ShiftScaleRotate
-
-```python
-A.ShiftScaleRotate(
-    shift_limit=0.1,
-    scale_limit=0.1,
-    rotate_limit=15,
-    border_mode=0,
-    p=0.5
-)
-```
-
-- Shift: ±10%
-- Scale: ±10%
-- Rotation: ±15°
-- Probability: 50%
-
-### 3. CoarseDropout (Cutout)
-
-```python
-A.CoarseDropout(
-    max_holes=1,
-    max_height=16,
-    max_width=16,
-    min_holes=1,
-    min_height=16,
-    min_width=16,
-    fill_value=(125, 123, 114),  # CIFAR-10 mean
-    mask_fill_value=None,
-    p=0.5
-)
-```
-
-- Creates exactly 1 hole of 16x16 pixels
-- Filled with dataset mean values
-- Probability: 50%
+📖 **See:** `gradio_app/README.md` for deployment guide
 
 ---
 
-## 🚀 Installation & Setup
-
-### Prerequisites
-
-- macOS with Apple Silicon (M1/M2/M3)
-- Python 3.8+
-- PyTorch with MPS support
+## 🚀 Quick Start
 
 ### Installation
 
@@ -176,349 +104,236 @@ A.CoarseDropout(
 git clone <repo-url>
 cd optim-nn-sifar
 
-# Create virtual environment (recommended)
+# Create virtual environment
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
----
+### CIFAR-10 (Already Trained)
 
-## 📖 Usage
-
-### 1. View Model Summary
+The CIFAR-10 model is already trained with saved checkpoints in `logs/`.
 
 ```bash
+# View model architecture
+cd cifar10
 python model.py
+
+# View training results
+cat ../logs/training_log_*.txt
 ```
 
-This will display:
-
-- Layer-wise architecture
-- Parameter count per layer
-- Total parameters
-- Receptive field verification
-
-### 2. Test Data Loaders & Augmentations
+### CIFAR-100 (Train New Model)
 
 ```bash
+# Navigate to cifar100 directory
+cd cifar100
+
+# Test model architecture
+python model.py
+
+# Test data loaders
 python utils.py
+
+# Start training (100 epochs, ~2-3 hours)
+python train.py
+
+# After training, test inference
+python inference.py logs/cifar100/best_model.pth
 ```
 
-This will show:
-
-- Albumentations transform details
-- Dataset sizes
-- Sample batch information
-
-### 3. Train the Model
+### Launch Gradio App (After Training)
 
 ```bash
-python train.py
+# From project root
+cd gradio_app
+
+# Make sure model is trained and available
+export MODEL_PATH=../logs/cifar100/best_model.pth
+
+# Launch app
+python app.py
 ```
 
-Training configuration:
-
-- **Epochs**: 50 (adjustable)
-- **Batch Size**: 128
-- **Optimizer**: SGD with Nesterov momentum (0.9)
-- **Learning Rate**: OneCycleLR (max_lr=0.1)
-- **Weight Decay**: 1e-4
-- **Device**: Apple Silicon MPS (automatic detection)
-
-### 4. Monitor Training
-
-Training logs are saved in `logs/` directory:
-
-- `training_log_<timestamp>.txt` - Complete training log
-- `best_model.pth` - Best model checkpoint
-- `checkpoint_epoch_<N>.pth` - Periodic checkpoints
+The app will be available at `http://localhost:7860`
 
 ---
 
-## 📁 Project Structure
+## 🎓 Key Techniques & Technologies
 
-```
-optim-nn-sifar/
-│
-├── model.py              # CNN architecture (C1C2C3C40)
-├── utils.py              # Data loaders & augmentations
-├── train.py              # Training script
-├── requirements.txt      # Python dependencies
-├── README.md            # This file
-│
-├── data/                # CIFAR-10 dataset (auto-downloaded)
-│   └── cifar-10-batches-py/
-│
-└── logs/                # Training logs & checkpoints
-    ├── training_log_<timestamp>.txt
-    ├── best_model.pth
-    └── checkpoint_epoch_<N>.pth
-```
+### Deep Learning
 
----
+- **ResNet Architecture** - Residual learning with skip connections
+- **Label Smoothing** - Prevents overconfident predictions
+- **Cosine Annealing** - Smooth learning rate decay
+- **Warmup Scheduling** - Gradual LR increase at start
+- **Depthwise Separable Convolutions** - Parameter efficiency
+- **Dilated Convolutions** - Expand receptive field
+- **Global Average Pooling** - Reduce overfitting
 
-## 🎓 Training Results
+### Data Augmentation
 
-### ✅ Achieved Performance (Apple Silicon M-series)
+- Random Crop with padding
+- Random Horizontal Flip
+- Cutout / CoarseDropout
+- Albumentations library
 
-| Metric             | Target       | Achieved          | Status                    |
-| ------------------ | ------------ | ----------------- | ------------------------- |
-| **Test Accuracy**  | 85%+         | **88.59%**        | ✅ **Exceeded by 3.59%!** |
-| **Training Time**  | ~15-20 min   | **13.88 minutes** | ✅ Faster than expected   |
-| **Convergence**    | 40-50 epochs | 50 epochs         | ✅                        |
-| **Target Reached** | -            | Epoch 40 (86.62%) | ✅ 85%+ by epoch 40       |
-| **Parameters**     | < 200k       | 183,802           | ✅                        |
+### Optimization
 
-### Training Progression
+- SGD with Nesterov momentum
+- Weight decay (L2 regularization)
+- Batch normalization
+- Gradient clipping (if needed)
 
-| Epoch | Train Loss | Train Acc | Test Loss | Test Acc   | Notes                |
-| ----- | ---------- | --------- | --------- | ---------- | -------------------- |
-| 1     | 1.7333     | 35.46%    | 1.3756    | 49.78%     | Initial baseline     |
-| 10    | 0.7775     | 73.18%    | 0.6719    | 76.81%     | Rapid learning       |
-| 20    | 0.6379     | 77.83%    | 0.4910    | 83.10%     | Approaching target   |
-| 30    | 0.5613     | 80.52%    | 0.4512    | 84.77%     | Near 85%             |
-| 40    | 0.4782     | 83.35%    | 0.3938    | 86.62%     | **Target exceeded!** |
-| 50    | 0.3902     | 86.51%    | 0.3412    | **88.59%** | **Final best**       |
+### Tools & Frameworks
 
-### Key Observations
-
-- ✅ **Consistent improvement** throughout all 50 epochs
-- ✅ **No overfitting** - Train accuracy (86.51%) vs Test accuracy (88.59%)
-- ✅ **Stable training** on Apple Silicon MPS with no device errors
-- ✅ **Fast convergence** - 85% target reached by epoch 40
-- ✅ **Efficient architecture** - 183k parameters achieving 88.59%
-
-### Actual Training Log Sample
-
-```
-Epoch [  1/50] | Time: 11.8s | LR: 0.006350 | Train Loss: 1.7333 | Train Acc: 35.46% | Test Loss: 1.3756 | Test Acc: 49.78% <- Best!
-Epoch [ 10/50] | Time: 19.5s | LR: 0.100000 | Train Loss: 0.7775 | Train Acc: 73.18% | Test Loss: 0.6719 | Test Acc: 76.81%
-Epoch [ 20/50] | Time: 10.8s | LR: 0.085348 | Train Loss: 0.6379 | Train Acc: 77.83% | Test Loss: 0.4910 | Test Acc: 83.10% <- Best!
-Epoch [ 30/50] | Time: 19.3s | LR: 0.049990 | Train Loss: 0.5613 | Train Acc: 80.52% | Test Loss: 0.4512 | Test Acc: 84.77% <- Best!
-Epoch [ 40/50] | Time: 19.2s | LR: 0.014638 | Train Loss: 0.4782 | Train Acc: 83.35% | Test Loss: 0.3938 | Test Acc: 86.62% <- Best!
-Epoch [ 50/50] | Time: 13.2s | LR: 0.000000 | Train Loss: 0.3902 | Train Acc: 86.51% | Test Loss: 0.3412 | Test Acc: 88.59% <- Best!
-
-================================================================================
-TRAINING COMPLETED
-================================================================================
-Total Training Time: 13.88 minutes
-Best Test Accuracy: 88.59% (Epoch 50)
-Target Achieved (85%): ✓ Yes
-================================================================================
-```
-
-### Validation After Each Epoch
-
-✅ The training script automatically runs validation after each epoch and logs:
-
-- Training loss & accuracy
-- Test loss & accuracy
-- Learning rate
-- Best model tracking
-- Automatic checkpointing
+- **PyTorch** - Deep learning framework
+- **Albumentations** - Advanced image augmentation
+- **Gradio** - Web interface for ML models
+- **Apple Silicon MPS** - GPU acceleration on Mac
 
 ---
 
-## 🔧 Apple Silicon Optimization
+## 📊 Results Summary
 
-### MPS (Metal Performance Shaders) Features
-
-1. **Automatic Device Selection**
-
-   ```python
-   device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-   ```
-
-2. **Optimized Data Loading**
-
-   - `pin_memory=True` for faster GPU transfer
-   - `persistent_workers=True` for worker reuse
-   - `num_workers=4` optimized for Apple Silicon
-
-3. **Efficient Memory Usage**
-   - Batch size tuned for M-series GPUs
-   - Gradient accumulation support
-
-### Performance Tips
-
-- **M1/M2 Macs**: Use batch_size=128
-- **Limited RAM**: Reduce batch_size to 64 or set num_workers=2
-- **Memory Issues**: Close other applications during training
+| Project   | Model      | Dataset   | Accuracy          | Parameters | Status            |
+| --------- | ---------- | --------- | ----------------- | ---------- | ----------------- |
+| CIFAR-10  | Custom CNN | CIFAR-10  | **88.59%**        | 183,802    | ✅ Completed      |
+| CIFAR-100 | ResNet-18  | CIFAR-100 | **73%+ (target)** | ~11M       | 🔄 Ready to train |
 
 ---
 
-## 📊 Model Specifications
+## 💻 System Requirements
 
-| Specification      | Value              | Status      |
-| ------------------ | ------------------ | ----------- |
-| Architecture       | C1C2C3C40          | ✅          |
-| Receptive Field    | 47                 | ✅ (> 44)   |
-| Total Parameters   | ~180k              | ✅ (< 200k) |
-| Depthwise Sep Conv | C2 Block           | ✅          |
-| Dilated Conv       | C3 + Transitions   | ✅          |
-| GAP                | Yes                | ✅          |
-| Target Accuracy    | 85%                | ✅          |
-| Augmentations      | 3 (Albumentations) | ✅          |
-| Apple Silicon      | MPS Optimized      | ✅          |
+### Hardware
+
+- **Recommended:** Apple Silicon (M1/M2/M3) or NVIDIA GPU
+- **Minimum:** CPU (slower training)
+- **RAM:** 8GB+ recommended
+- **Storage:** ~2GB for datasets and models
+
+### Software
+
+- **OS:** macOS 12.3+ (for MPS), Linux, or Windows
+- **Python:** 3.8+
+- **PyTorch:** 2.0+ with MPS or CUDA support
 
 ---
 
-## 🧪 Testing & Validation
+## 📈 Training Progress Tracking
 
-### Verify Model Architecture
+### CIFAR-100 Training Logs
+
+Logs are saved to `logs/cifar100/` with timestamps:
+
+```
+logs/cifar100/
+├── training_log_YYYYMMDD_HHMMSS.txt  # Complete training log
+├── best_model.pth                     # Best checkpoint
+├── checkpoint_epoch_10.pth            # Periodic checkpoints
+├── checkpoint_epoch_20.pth
+└── ...
+```
+
+Each log includes:
+
+- Epoch-by-epoch training and validation metrics
+- Learning rate schedule
+- Best accuracy tracking
+- Training time per epoch
+- Final summary with total time and best results
+
+---
+
+## 🔧 Configuration
+
+### CIFAR-100 Training Config
+
+All hyperparameters are centralized in `cifar100/config.py`:
 
 ```python
-from model import CIFAR10Net, get_model_summary
-import torch
+# Model
+NUM_CLASSES = 100
 
-model = CIFAR10Net()
-device = torch.device("mps")
-get_model_summary(model, device=device)
+# Training
+BATCH_SIZE = 128
+NUM_EPOCHS = 100
+INITIAL_LR = 0.1
+MOMENTUM = 0.9
+WEIGHT_DECAY = 5e-4
+LABEL_SMOOTHING = 0.1
+
+# Schedule
+LR_WARMUP_EPOCHS = 5
+LR_SCHEDULE = 'cosine'
+
+# Augmentation
+RANDOM_CROP_PADDING = 4
+CUTOUT_SIZE = 16
+CUTOUT_PROB = 0.5
 ```
 
-### Verify Augmentations
-
-```python
-from utils import print_augmentation_info
-print_augmentation_info()
-```
-
-### Load & Test Best Model
-
-```python
-import torch
-from model import CIFAR10Net
-
-model = CIFAR10Net()
-checkpoint = torch.load('logs/best_model.pth')
-model.load_state_dict(checkpoint['model_state_dict'])
-
-print(f"Best Accuracy: {checkpoint['accuracy']:.2f}%")
-print(f"Epoch: {checkpoint['epoch']}")
-```
-
----
-
-## 📚 Key Technologies
-
-- **PyTorch**: Deep learning framework
-- **Albumentations**: Advanced image augmentation
-- **torchsummary**: Model architecture visualization
-- **tqdm**: Progress bars for training
-
----
-
-## 🔍 Architecture Highlights
-
-### Why This Design Works
-
-1. **Dilated Convolutions over MaxPooling**
-
-   - Maintains spatial resolution longer
-   - Increases receptive field without parameter cost
-   - Better gradient flow
-
-2. **Depthwise Separable Convolutions**
-
-   - 8-9x fewer parameters than standard convolutions
-   - Nearly same representational power
-   - Faster training and inference
-
-3. **Global Average Pooling**
-
-   - Acts as structural regularizer
-   - Reduces parameters significantly
-   - More robust to spatial translations
-
-4. **OneCycleLR Scheduler**
-   - Faster convergence
-   - Better generalization
-   - Automatic learning rate tuning
+Easy to modify for experimentation!
 
 ---
 
 ## 🐛 Troubleshooting
 
-### MPS Not Available
+### MPS (Apple Silicon) Issues
 
-If you see "MPS not available, using CPU":
-
-- Ensure you have macOS 12.3+ and Apple Silicon
-- Update PyTorch: `pip install --upgrade torch torchvision`
-- Check: `python -c "import torch; print(torch.backends.mps.is_available())"`
-
-### Out of Memory
-
-If you encounter OOM errors:
+If MPS is not available:
 
 ```python
-# In train.py, reduce batch size
-train_loader, test_loader = get_dataloaders(batch_size=64, num_workers=2)
+# Check MPS availability
+python -c "import torch; print(torch.backends.mps.is_available())"
+
+# Fallback to CPU in config.py
+USE_MPS = False
+```
+
+### Memory Issues
+
+Reduce batch size in `config.py`:
+
+```python
+BATCH_SIZE = 64  # or 32
+NUM_WORKERS = 0  # reduce workers
 ```
 
 ### Slow Training
 
+- Ensure GPU (MPS/CUDA) is being used
 - Close other applications
-- Reduce `num_workers` to 2
-- Ensure no background processes are using GPU
+- Check that data is not being downloaded repeatedly
 
 ---
 
-## 🏆 Final Summary
+## 📚 References
 
-### Achievement Highlights
+### Papers
 
-This CIFAR-10 CNN project successfully demonstrates:
+1. He et al., "Deep Residual Learning for Image Recognition" (2016)
+2. Krizhevsky & Hinton, "Learning Multiple Layers of Features from Tiny Images" (2009)
+3. Szegedy et al., "Rethinking the Inception Architecture for Computer Vision" (2016)
+4. Smith, "A disciplined approach to neural network hyper-parameters" (2018)
 
-✅ **Exceeded Target Accuracy**: Achieved **88.59%** (target was 85%+) - **3.59% above target**
+### Datasets
 
-✅ **Efficient Architecture**: Only **183,802 parameters** (< 200k requirement)
+- **CIFAR-10:** 60,000 32×32 images, 10 classes
+- **CIFAR-100:** 60,000 32×32 images, 100 classes
 
-- Depthwise Separable Convolution reduces params while maintaining performance
-- Dilated Convolutions replace MaxPooling for better receptive field
-- Global Average Pooling minimizes final layer parameters
+---
 
-✅ **Fast Training**: **13.88 minutes** on Apple Silicon (faster than 15-20 min target)
+## 🤝 Contributing
 
-- Fully optimized for Apple Silicon MPS
-- No device mismatch errors
-- Stable training with OneCycleLR scheduler
+Feel free to:
 
-✅ **Modern Techniques**:
-
-- C1C2C3C40 architecture with RF=47 (> 44 requirement)
-- 3 Albumentations transforms (HorizontalFlip, ShiftScaleRotate, CoarseDropout)
-- No MaxPooling - uses dilated convolutions instead
-- Validation after each epoch with automatic checkpointing
-
-✅ **Clean Code**:
-
-- Modular design (`model.py`, `utils.py`, `train.py`)
-- Comprehensive documentation
-- Easy to run and reproduce
-
-### Performance Comparison
-
-| Metric          | Expected  | Actual    | Improvement    |
-| --------------- | --------- | --------- | -------------- |
-| Accuracy        | 85%       | 88.59%    | +3.59%         |
-| Training Time   | 15-20 min | 13.88 min | ~25% faster    |
-| Parameters      | < 200k    | 183,802   | 8% under limit |
-| Receptive Field | > 44      | 47        | Exceeded       |
-
-### Why It Works
-
-1. **Dilated Convolutions**: Increase receptive field without increasing parameters
-2. **Depthwise Separable**: ~8x fewer parameters than standard convolutions
-3. **GAP**: Reduces overfitting and parameters in final layers
-4. **OneCycleLR**: Super-convergence for faster, better training
-5. **Albumentations**: Strong data augmentation prevents overfitting
-6. **Apple Silicon MPS**: Optimized for unified memory architecture
-
-**All requirements met and exceeded!** 🎉
+- Report issues
+- Suggest improvements
+- Submit pull requests
+- Share training results
 
 ---
 
@@ -530,16 +345,24 @@ This project is open source and available for educational purposes.
 
 ## 🙏 Acknowledgments
 
-- CIFAR-10 dataset by Alex Krizhevsky
-- Albumentations library for augmentations
-- PyTorch team for MPS support
+- PyTorch team for excellent framework
+- CIFAR dataset creators
+- Albumentations library contributors
+- Gradio team for easy ML deployment
+- Apple for MPS support in PyTorch
 
 ---
 
-## 📧 Contact
+## 🎯 Next Steps
 
-For questions or improvements, please open an issue in the repository.
+1. ✅ CIFAR-10 custom CNN trained and validated
+2. 🔄 Train CIFAR-100 ResNet-18 model
+3. 📊 Validate 73%+ accuracy target
+4. 🚀 Deploy to Huggingface Spaces
+5. 🌐 Share the live application
 
 ---
 
 **Happy Training! 🚀**
+
+For detailed instructions on each project, see the respective README files in each folder.
