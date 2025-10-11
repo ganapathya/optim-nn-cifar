@@ -10,16 +10,14 @@ from PIL import Image
 import sys
 import os
 
-# Add parent directory to path to import cifar100 modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
+# Import cifar100 modules (now in same directory for Huggingface Spaces)
 from cifar100.model import resnet18
 from cifar100.utils import CIFAR100_CLASSES
 from cifar100.inference import CIFAR100Predictor
 
 
-# Model path (adjust based on deployment)
-MODEL_PATH = os.environ.get('MODEL_PATH', 'best_model.pth')
+# Model path (for Huggingface Spaces deployment)
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'best_model.pth')
 
 
 # Initialize predictor globally
@@ -94,7 +92,7 @@ def create_interface():
     - Architecture: ResNet-18 (adapted for CIFAR-100)
     - Dataset: CIFAR-100 (60,000 32x32 color images in 100 classes)
     - Training: 100 epochs with SGD, cosine annealing, and label smoothing
-    - Accuracy: 73%+ on test set
+    - Accuracy: 78.33% on test set
     
     **Note:** This model works best with small images (32x32). Large images will be resized.
     """
